@@ -1,9 +1,7 @@
 ﻿// FileAsyncKeychain.cs,  5/16/2015
 // Author: Eric S Policaro
 
-using System;
 using System.IO;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 
 namespace Crypto.Core
@@ -37,12 +35,7 @@ namespace Crypto.Core
             using(var reader = new StreamReader(stream))
             {
                 string stored = await reader.ReadLineAsync();
-                string[] parts = stored.Split(_credSeparator);
-
-                string username = parts[0];
-                string encryptedPassword = parts[1];
-
-                return new Credential(username, Decrypt(encryptedPassword));
+                return Credential.Decode(stored);
             }
         }
 
@@ -51,34 +44,10 @@ namespace Crypto.Core
             using(var stream = File.Open(GetKeyPath(key), FileMode.Create))
             using(var writer = new StreamWriter(stream))
             {
-                byte[] encryptedPassword = Encrypt(creds.Password);
-                string toStore = creds.Username + _credSeparator + ToBase64(encryptedPassword);
+                string encoded = creds.Encode();
 
-                await writer.WriteLineAsync(toStore);
-
-                encryptedPassword = new byte[0];
+                await writer.WriteLineAsync(encoded);
             }
-        }
-
-        private byte[] Encrypt(byte[] data)
-        {
-            return ProtectedData.Protect(data, null, _protectionScope);
-        }
-
-        private byte[] Decrypt(string encrypted)
-        {
-            byte[] decodedData = FromBase64(encrypted);
-            return ProtectedData.Unprotect(decodedData, null, _protectionScope);
-        }
-
-        private byte[] FromBase64(string line)
-        {
-            return Convert.FromBase64String(line);
-        }
-
-        private string ToBase64(byte[] data)
-        {
-            return Convert.ToBase64String(data);
         }
 
         private string GetKeyPath(string key)
@@ -86,8 +55,7 @@ namespace Crypto.Core
             return Path.Combine(_keyFolder, key);
         }
 
-        private char _credSeparator = '|';
+        private char _separator = '|';
         private string _keyFolder;
-        private DataProtectionScope _protectionScope = DataProtectionScope.CurrentUser;
     }
 }
