@@ -42,8 +42,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Credential.cs" />
-    <Compile Include="FileAsyncKeychain.cs" />
-    <Compile Include="IAsyncKeychain.cs" />
+    <Compile Include="FileKeychain.cs" />
+    <Compile Include="IKeychain.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

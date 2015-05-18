@@ -17,7 +17,7 @@ namespace CryptoSandbox
         /// with the given keychain.
         /// </summary>
         /// <param name="keychain">Keychain to test</param>
-        public CryptoSandboxPresenter(IAsyncKeychain keychain)
+        public CryptoSandboxPresenter(IKeychain keychain)
         {
             _keychain = keychain;
             Clear();
@@ -90,7 +90,7 @@ namespace CryptoSandbox
                                .ConfigureAwait(false);
                 _working = false;
                 Clear();
-            }   
+            } // This tester is the final credential client, responsible for disposing any creds
         }
 
         /// <summary>
@@ -112,7 +112,7 @@ namespace CryptoSandbox
                 // password immediately and not store it.
                 RetrievedPassword = cred.GetPasswordString();
 
-            } // Credential out of scope, disposed and password array cleared
+            } // This tester is the final credential client, responsible for disposing any creds
             _working = false;
         }
 
@@ -132,6 +132,6 @@ namespace CryptoSandbox
         }
 
         private bool _working;
-        private IAsyncKeychain _keychain;
+        private IKeychain _keychain;
     }
 }

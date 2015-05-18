@@ -7,9 +7,13 @@ using System.Threading.Tasks;
 namespace Crypto.Core
 {
     /// <summary>
-    /// This class is a keychain that stores credentials in the filesytem.
+    /// This class is a keychain that stores each credential as an 
+    /// individual file (named for the key) in a folder on the local file system.
+    /// 
+    /// For better test integration in larger apps, you could inject System.IO.Abstractions:
+    /// https://github.com/tathamoddie/System.IO.Abstractions
     /// </summary>
-    public class FileAsyncKeychain : IAsyncKeychain
+    public class FileAsyncKeychain : IKeychain
     {
         /// <summary>
         /// Initializes a new instance of class <see cref="FileAsyncKeychain"/>
@@ -26,6 +30,15 @@ namespace Crypto.Core
             return File.Exists(GetKeyPath(key));
         }
 
+        public Credential Retrieve(string key)
+        {
+            if (!KeyExists(key))
+                return Credential.Empty;
+
+            string stored = File.ReadAllText(GetKeyPath(key));
+            return Credential.Decode(stored);
+        }
+
         public async Task<Credential> RetrieveAsync(string key)
         {
             if (!KeyExists(key))
@@ -39,8 +52,15 @@ namespace Crypto.Core
             }
         }
 
+        public void Store(string key, Credential creds)
+        {
+            CreateKeyFolder(key);
+            File.WriteAllText(GetKeyPath(key), creds.Encode());
+        }
+
         public async Task StoreAsync(string key, Credential creds)
         {
+            CreateKeyFolder(key);
             using(var stream = File.Open(GetKeyPath(key), FileMode.Create))
             using(var writer = new StreamWriter(stream))
             {
@@ -50,12 +70,16 @@ namespace Crypto.Core
             }
         }
 
+        private void CreateKeyFolder(string key)
+        {
+            new FileInfo(GetKeyPath(key)).Directory.Create();
+        }
+
         private string GetKeyPath(string key)
         {
             return Path.Combine(_keyFolder, key);
         }
 
-        private char _separator = '|';
         private string _keyFolder;
     }
 }
