@@ -2,6 +2,8 @@
 // Author: Eric S Policaro
 
 using System;
+using System.Runtime.InteropServices;
+using System.Security;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -14,25 +16,12 @@ namespace Crypto.Core
     public class Credential : IDisposable
     {
         /// <summary>
-        /// Retrieve an instance of an empty credential.
+        /// Retrieve an empty credential instance.
         /// </summary>
         public static Credential Empty
         {
-            get { return new Credential(); }
+            get { return new Credential(string.Empty, string.Empty); }
         }
-
-        /// <summary>
-        /// Initalizes a new instance of class <see cref="Credential"/>.
-        /// </summary>
-        public Credential() : this(string.Empty, string.Empty) { }
-
-        /// <summary>
-        /// Initalizes a new instance of class <see cref="Credential"/> with the given parameters.
-        /// </summary>
-        /// <param name="username">Credential username</param>
-        /// <param name="password">Credential password</param>
-        public Credential(string username, byte[] password)
-            : this(username, Encoding.UTF8.GetString(password)) { }
 
         /// <summary>
         /// Initalizes a new instance of class <see cref="Credential"/> with the given parameters.
@@ -42,7 +31,38 @@ namespace Crypto.Core
         public Credential(string username, string password)
         {
             Username = username;
-            Password = Encoding.UTF8.GetBytes(password);
+            _password = Encrypt(GetUTF8Bytes(password));
+        }
+
+        /// <summary>
+        /// Initalizes a new instance of class <see cref="Credential"/> with the given parameters.
+        /// </summary>
+        /// <param name="username">Credential username</param>
+        /// <param name="password">Password as a SecureString</param>
+        public Credential(string username, SecureString password)
+        {
+            Username = username;
+            MarshalSecureString(password);
+        }
+
+        private Credential(string username, byte[] password)
+        {
+            Username = username;
+            _password = password;
+        }
+
+        private void MarshalSecureString(SecureString password)
+        {
+            IntPtr ptr = IntPtr.Zero;
+            try
+            {
+                ptr = Marshal.SecureStringToGlobalAllocUnicode(password);
+                _password = Encrypt(GetUTF8Bytes(Marshal.PtrToStringUni(ptr)));
+            }
+            finally
+            {
+                Marshal.ZeroFreeCoTaskMemUnicode(ptr);
+            }
         }
 
         /// <summary>
@@ -51,30 +71,21 @@ namespace Crypto.Core
         public string Username { get; private set; }
 
         /// <summary>
-        /// Gets the password.
-        /// </summary>
-        public byte[] Password { get; private set; }
-
-        /// <summary>
         /// Gets the password as a string.
         /// </summary>
         public string GetPasswordString()
         {
-            return Encoding.UTF8.GetString(Password);
+            byte[] decrypted = ProtectedData.Unprotect(_password, Secret, ProtectionScope);
+            return Encoding.UTF8.GetString(decrypted);
         }
 
         /// <summary>
-        /// Encode this credential for storage.
+        /// Gets the encoded version of this credential.
         /// </summary>
-        /// <returns></returns>
-        public string Encode()
+        /// <returns>Encoded and encrypted credentials.</returns>
+        public string Encoded()
         {
-            byte[] encryptedPassword = Encrypt(Password);
-            string encodedPassword = ToBase64(encryptedPassword);
-
-            byte[] result = GetUTF8Bytes(Username + _separator + encodedPassword);
-            encryptedPassword = new byte[0];
-
+            byte[] result = GetUTF8Bytes(Username + _separator + ToBase64(_password));
             return ToBase64(result);
         }
 
@@ -88,21 +99,13 @@ namespace Crypto.Core
             string decoded = Encoding.UTF8.GetString(FromBase64(encoded));
             string[] parts = decoded.Split(_separator);
 
-            if (parts.Length == 2)
-                return new Credential(parts[0], Decrypt(parts[1]));
-
-            return Credential.Empty;
+            return (parts.Length == 2) ? new Credential(parts[0], FromBase64(parts[1]))
+                                       : Credential.Empty;
         }
 
         private byte[] Encrypt(byte[] data)
         {
-            return ProtectedData.Protect(data, Secret, _protectionScope);
-        }
-
-        private static byte[] Decrypt(string encrypted)
-        {
-            byte[] decodedData = FromBase64(encrypted);
-            return ProtectedData.Unprotect(decodedData, Secret, _protectionScope);
+            return ProtectedData.Protect(data, Secret, ProtectionScope);
         }
 
         private string ToBase64(byte[] data)
@@ -132,12 +135,12 @@ namespace Crypto.Core
 
         public void Dispose()
         {
-            try { Password = new byte[0]; }
+            try { _password = new byte[0]; }
             catch (Exception) { }
         }
 
+        private byte[] _password;
         private const char _separator = '|';
-        private static DataProtectionScope _protectionScope = DataProtectionScope.CurrentUser;
 
         // Some example encryption entropy. Entropy with respect to DPAPI is only
         // useful for protecting encrypted data from other applications. To make

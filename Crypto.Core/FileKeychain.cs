@@ -47,7 +47,7 @@ namespace Crypto.Core
             using(var stream = File.Open(GetKeyPath(key), FileMode.Open))
             using(var reader = new StreamReader(stream))
             {
-                string stored = await reader.ReadLineAsync();
+                string stored = await reader.ReadLineAsync().ConfigureAwait(false);
                 return Credential.Decode(stored);
             }
         }
@@ -55,18 +55,19 @@ namespace Crypto.Core
         public void Store(string key, Credential creds)
         {
             CreateKeyFolder(key);
-            File.WriteAllText(GetKeyPath(key), creds.Encode());
+
+            File.WriteAllText(GetKeyPath(key), creds.Encoded());
         }
 
         public async Task StoreAsync(string key, Credential creds)
         {
             CreateKeyFolder(key);
+
             using(var stream = File.Open(GetKeyPath(key), FileMode.Create))
             using(var writer = new StreamWriter(stream))
             {
-                string encoded = creds.Encode();
-
-                await writer.WriteLineAsync(encoded);
+                string encoded = creds.Encoded();
+                await writer.WriteLineAsync(encoded).ConfigureAwait(false);
             }
         }
 

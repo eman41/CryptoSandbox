@@ -86,11 +86,11 @@ namespace CryptoSandbox
             using(var cred = new Credential(Username, Password))
             {
                 _working = true;
-                await _keychain.StoreAsync(Key, cred)
-                               .ConfigureAwait(false);
+                await _keychain.StoreAsync(Key, cred);
                 _working = false;
+
                 Clear();
-            } // This tester is the final credential client, responsible for disposing any creds
+            }
         }
 
         /// <summary>
@@ -103,15 +103,10 @@ namespace CryptoSandbox
                 return;
 
             _working = true;
-            using(Credential cred = await _keychain.RetrieveAsync(Key)
-                                                   .ConfigureAwait(false))
+            using(Credential cred = await _keychain.RetrieveAsync(Key))
             {
                 RetrievedUsername = cred.Username;
-
-                // In a practical application, you would use the 
-                // password immediately and not store it.
                 RetrievedPassword = cred.GetPasswordString();
-
             } // This tester is the final credential client, responsible for disposing any creds
             _working = false;
         }
